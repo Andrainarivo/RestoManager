@@ -36,7 +36,7 @@ Structure Modele-Controller-Route de l'application :
    * nom
    * description
    * prix
-   * ...
+   * categorie
 4. **Commandes** :
    * commande_id
    * client_id (clé étrangère vers Clients)

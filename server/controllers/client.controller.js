@@ -68,15 +68,16 @@ export function getClientById(req, res) {
 
 // Mettre à jour les informations d'un client
 export function updateClient(req, res) {
-    const clientId = req.params.id;
+    const clientId = req.session.clientID;
     if (Object.keys(req.body).length < 3) {
-        res.status(400).send({error:true, message:'Renseignez tous les champs requis'});
+        return res.status(400).send({error:true, message:'Renseignez tous les champs requis'});
     }else{
         const updatedClient = new Client(req.body);
 
         Client.update(clientId, updatedClient, (err) => {
-            if (err) res.send(err.message);
+            if (err)  return res.send(err.message);
             res.status(200).json({ message: 'Client mis à jour avec succès' });
+            return;
         });
     }
     

@@ -21,7 +21,7 @@ export function authentificateToken (req, res, next) {
 
 // middleware d'autorisation pour tous les employes
 export function authorizeEmploye(req, res, next) {
-    const poste = ['Chef-Cuisinier', 'Cuisinier', 'Server', 'Others'];
+    const poste = ['Chef-Cuisinier', 'Cuisinier', 'Serveur', 'Others'];
 
     for (let i = 0; i < poste.length; i++) {
         if (req.session.role !== poste[i]){
@@ -36,7 +36,7 @@ export function authorizeEmploye(req, res, next) {
 // middleware d'autorisation pour les chef-cuisinier
 export function authorizeChef(req, res, next) {
     if (req.session.role !== 'Chef-Cuisinier') {
-        res.status(403).send('Non authentifié')
+        res.status(403).send('Accessible seulement aux Chefs-Cuisinier')
         return;
     }
     next();

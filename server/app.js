@@ -4,6 +4,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import session from 'express-session';
+import cors from 'cors';
 
 
 // app module
@@ -13,9 +14,15 @@ import reservationRouter from './routes/reservation.route.js';
 import menuRouter from './routes/menus.route.js';
 import commandeRouter from './routes/commande.route.js';
 import stockRouter from './routes/stock.route.js';
+import adminRouter from './routes/admin.route.js';
 
+// create server express
 const app = express();
 const port= process.env.PORT;
+
+// configuration header information
+app.use(cors());
+app.disable("x-powered-by");
 
 // parser les données depuis x-www-form-urlencoded
 app.use(bodyParser.urlencoded({extended : false}));
@@ -28,12 +35,20 @@ app.use(session({
     secret: 'very secret'
 }));
 
-
-
-// Route racine
+// root route
 app.get('/', (req, res) => {
-    res.send('Hello World');
-    //console.log(req.session.clientID);
+    try {
+        res.status(200).json({
+            status: "success",
+            message: "Welcome to API gestion_resto"
+        });
+        //console.log(req.session.clientID)
+    } catch (error) {
+        res.status(error.statusCode).json({
+            status: "error",
+            message: error.message
+        });
+    };
 
 });
 
@@ -44,6 +59,7 @@ app.use(reservationRouter);
 app.use(menuRouter);
 app.use(commandeRouter);
 app.use(stockRouter);
+app.use(adminRouter);
 
 // Start Express App
 app.listen(port, ()=> {

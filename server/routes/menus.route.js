@@ -1,14 +1,24 @@
 import { createMenu, deleteMenu, getAllMenus, getMenuByCat, getMenuById, updateMenu } from '../controllers/menu.controller.js';
 import {Router} from 'express';
+import { authorizeChef, authorizeEmploye } from '../middlewares/employe.auth.js';
+import { authorizeClient } from '../middlewares/client.auth.js';
 
 const menuRouter = Router();
 
-menuRouter.post('/menus', createMenu);
-menuRouter.get('/menus', getAllMenus);
-menuRouter.get('/menus/:id', getMenuById);
-menuRouter.get('/menus/:categorie', getMenuByCat);
-menuRouter.put('/menus/:id', updateMenu);
+//----POST----
+menuRouter.post('/menus/add', authorizeChef, createMenu);
+
+//----GET----
+menuRouter.get('/menus/list', authorizeEmploye || authorizeClient, getAllMenus);
+menuRouter.get('/menus/get/:id', authorizeEmploye || authorizeClient, getMenuById);
+menuRouter.get('/menus/get/:categorie', authorizeEmploye || authorizeClient, getMenuByCat);
+
+//----PUT----
+menuRouter.put('/menus/maj/:id', authorizeChef, updateMenu);
 //menuRouter.patch('/menus/:id', patchMenu);
-menuRouter.delete('/menus/:id', deleteMenu);
+
+//----DELETE----
+menuRouter.delete('/menus/del/:id', authorizeChef, deleteMenu);
+
 
 export default menuRouter;
