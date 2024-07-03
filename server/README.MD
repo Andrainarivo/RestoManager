@@ -67,13 +67,14 @@ Structure Modele-Controller-Route de l'application :
    * email
    * personnel_key
 
-   **7. Admin** :
+7. **Admin** :
 
    * username
    * email
    * password
 
 ### Contrôleurs et Routes :
+routes => /routes
 
 1. **Clients** :
    * Contrôleur : client.controller.js
