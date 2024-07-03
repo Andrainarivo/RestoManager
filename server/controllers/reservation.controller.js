@@ -201,7 +201,7 @@ export function deleteMyReservation(req, res){
 
 // Récuperer toutes les reservations d'un client
 export function getMyReservation(req, res){
-    const clientId = req.session.clientId;
+    const clientId = req.session.clientID;
 
     ClientReservation.findClientReservation(clientId, (err, clientReservation) => {
         if (err) {

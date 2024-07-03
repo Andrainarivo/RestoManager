@@ -2,12 +2,16 @@
 
 import Client from '../models/client.model.js';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { config } from 'dotenv';
+
+config();
 
 // Créer un nouveau client
-export function createClient(req, result) {
+export function createClient(req, response) {
 
     if (Object.keys(req.body).length < 3) {
-        result.status(400).send({error:true, message:'Renseignez tous les champs requis'});
+        response.status(400).send({error:true, message:'Renseignez tous les champs requis'});
         return;
     }else{
         let newClient = new Client(req.body);
@@ -15,11 +19,11 @@ export function createClient(req, result) {
         // vérifie si le client existe déjà dans la base de donnée
         newClient.is_exists((err, res) => {
             if (err) {
-                result.send(err.message);
+                response.send(err.message);
                 return;
             }
             if (res === true) {
-                result.status(400).send({message: 'Cette email est déjà enregistrer dans la base de donnée'});
+                response.status(400).send({message: 'Cette email est déjà enregistrer dans la base de donnée'});
                 return;
             }
             else{
@@ -33,10 +37,11 @@ export function createClient(req, result) {
                         // enregistrement du client
                         Client.save(newClient, (err, res)=>{
                             if (err) {
-                                result.send(err.message);
+                                response.send(err.message);
                                 return;
                             }
-                            result.status(201).json({error:false, message: 'Client créé avec succès' });
+
+                            response.status(201).json({error:false, message: 'Client créé avec succès' });
                             return;
                         });
                     });
@@ -110,6 +115,12 @@ export function deleteClient(req, res) {
 
 // Authentifié un client
 export function authentificateClient(req, res){
+    
+    function generateAccessToken(payload) {
+        const options = {expiresIn: '1 days'}
+        return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, options);
+    };
+
     const input = {
         email: req.body.email,
         password: req.body.password
@@ -120,19 +131,28 @@ export function authentificateClient(req, res){
             res.send(err.message);
             return;
         }
+        if (result.length == 0) {
+            return res.send("Email ou password invalide");
+        }
 
         const client = {
             id: result[0].client_id,
             email: input.email,
-            password: result[0].password
+            password: result[0].password,
+            role: 'client'
         };
 
         // verification du password
         if(await bcrypt.compare(input.password, client.password)){
-            // Authentification réussie, enregistrement de l'ID du client dans la session
-            req.session.clientID = client.id;
-            console.log(req.session);
-            res.send('Authentification réussie');
+            // Authentification réussie
+            // Generate a JWT with a secret key (for authorization)
+            const payload = {id: client.id, role: client.role};
+            const token = generateAccessToken(payload);
+            res.cookie('token', token, {httpOnly: true, secure: true, SameSite: 'strict'});
+            res.json({
+                status: "Logged in",
+                message: 'Authentification réussie'
+            });
             return;
         }else {
                 res.status(401).send('Identifiants incorrects');
@@ -140,4 +160,16 @@ export function authentificateClient(req, res){
             }
         
     });
+}
+
+// deconnection
+export function logout(req, res) {
+    // destroy the user's session to log them out
+    req.session.destroy();
+
+    // destroy the user's token
+    const token = null
+    res.cookie('token', token, {httpOnly: true, secure: true, SameSite: 'strict'});
+
+    res.redirect('/');
 }

@@ -5,7 +5,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import session from 'express-session';
 import cors from 'cors';
-
+import cookieParser from 'cookie-parser';
 
 // app module
 import clientRouter from './routes/client.route.js';
@@ -22,10 +22,12 @@ const port= process.env.PORT;
 
 // configuration header information
 app.use(cors());
+app.use(cookieParser())
 app.disable("x-powered-by");
 
-// parser les données depuis x-www-form-urlencoded
+// parse requests of content-type  - application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({extended : false}));
+// parse requests of content-type  - application/json
 app.use(bodyParser.json());
 
 // Configuration de express-session
@@ -42,7 +44,7 @@ app.get('/', (req, res) => {
             status: "success",
             message: "Welcome to API gestion_resto"
         });
-        //console.log(req.session.clientID)
+        //console.log(req.session)
     } catch (error) {
         res.status(error.statusCode).json({
             status: "error",

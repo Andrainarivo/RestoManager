@@ -87,3 +87,5 @@ export const updatePkValidation = [
 
 
 //-------------VERIFICATION INPUT FOR ADD & MAJ OBJECT(commande, reservation, menu, stock et payement)----------------
+
+//pass

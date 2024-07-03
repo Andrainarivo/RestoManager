@@ -117,7 +117,6 @@ class Client {
                 result(err, null);
             }
             else{
-                //console.log(res);
                 result(null, res);
             }
         });

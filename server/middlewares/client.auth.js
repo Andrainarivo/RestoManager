@@ -1,12 +1,11 @@
 
 // middleware d'autorisation pour les clients
 export function authorizeClient(req, res, next) {
-    if (req.session.clientID && req.session.role === 'clients') {
-        // Le client est authentifié et autorisé
-        console.log(req.session.clientId);
+    if (req.user.role === 'client') {
+        // Le client est authentifié et autorisé, enregistrement de l'id dans la session
+        req.session.clienID = req.user.id;
         next();
     }else{
-        res.status(403).json("Vous devez etre authentifié comme un client pour à acceder à cette section");
-        return;
+        return res.sendStatus(403);
     };
 }

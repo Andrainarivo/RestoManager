@@ -2,6 +2,10 @@
 
 import Employe from '../models/employe.model.js';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { config } from 'dotenv';
+
+config();
 
 // Créer un nouveau emlpoyé
 export function create(request, result) {
@@ -129,6 +133,11 @@ export function authentificateEmploye(req, res) {
         personnel_key: req.body.personnel_key
     };
 
+    function generateAccessToken(payload) {
+        const options = {expiresIn: '2 days'}
+        return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, options);
+    };
+
     Employe.loadUser(input.email, async (err, result) => {
         if (err) {
             res.send(err.message);
@@ -146,11 +155,11 @@ export function authentificateEmploye(req, res) {
         if (employe.pk_status === 0) {
             // verification du pk
             if (input.personnel_key === employe.personnel_key){
-                // Authentification réussie, enregistrement de l'employe_id et du role(poste) de l'employe dans la session
-                req.session.employeId = employe.id;
-                req.session.role = employe.poste;
-                console.log(req.session);
-                res.send('Authentification réussie');
+                // Authentification réussie, generation du token employe pour l'autorisation employe
+                const payload = {id: employe.id, role: employe.poste};
+                const token = generateAccessToken(payload);
+                res.cookie('token', token, {httpOnly: true, secure: true, SameSite: 'strict'});
+                res.status(200).json('Authentification réussie');
                 return;
             }else {
                 res.status(401).send('Identifiants incorrects');
@@ -159,10 +168,10 @@ export function authentificateEmploye(req, res) {
         
         }else{ // si le pk_status est 1 ==> le pk est haché dans la bdd
             if(await bcrypt.compare(input.personnel_key, employe.personnel_key)){
-                req.session.employeId = employe.id;
-                req.user.role = employe.poste;
-                console.log(req.session, req.user.role);
-                res.send('Authentification réussie');
+                const payload = {id: employe.id, role: employe.poste};
+                const token = generateAccessToken(payload);
+                res.cookie('token', token, {httpOnly: true, secure: true, SameSite: 'strict'});
+                res.status(200).json('Authentification réussie');
                 return;
             }else {
                     res.status(401).send('Identifiants incorrects');
@@ -171,4 +180,16 @@ export function authentificateEmploye(req, res) {
         };
         
     });
+}
+
+// deconnection
+export function Emplogout(req, res) {
+    // destroy the user's session to log them out
+    req.session.destroy();
+
+    // destroy the user's token
+    const token = null
+    res.cookie('token', token, {httpOnly: true, secure: true, SameSite: 'strict'});
+    
+    res.redirect('/');
 }

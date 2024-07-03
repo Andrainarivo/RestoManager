@@ -1,5 +1,9 @@
 import Admin from "../models/admin.model.js";
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import {config} from 'dotenv';
+
+config();
 
 // ajouter un nouveau admin
 // champs requis: username, email, password
@@ -150,6 +154,12 @@ export function deleteAdmin(req, res) {
 
 // Authentification Admin
 export function Login(req, res){
+
+    function generateAccessToken(payload) {
+        const options = {expiresIn: '2h'}
+        return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, options);
+    };
+
     const input = {
         email: req.body.email,
         password: req.body.password
@@ -167,15 +177,16 @@ export function Login(req, res){
         const admin = {
             id: result[0]['ID'],
             email: input.email,
-            password: result[0].Password
+            password: result[0].Password,
+            role: 'admin'
         };
 
         // comparaison du password
         if(await bcrypt.compare(input.password, admin.password)){
-            // Authentification réussie, enregistrement de l'ID dans la session
-            req.session.adminID = admin.id;
-            req.session.role = 'admin';
-            console.log(req.session);
+            // Authentification réussie, generation du token pour l'autorization admin
+            const payload = {id: admin.id, role: admin.role};
+            const token = generateAccessToken(payload);
+            res.cookie('token', token, {httpOnly: true, secure: true, SameSite: 'strict'});
             res.status(200).json({
                 status: 'success',
                 message: 'You have successfully logged in'
@@ -190,4 +201,16 @@ export function Login(req, res){
             }
         
     });
+}
+
+// deconnection
+export function Admlogout(req, res) {
+    // destroy the user's session to log them out
+    req.session.destroy();
+
+    // destroy the user's token
+    const token = null
+    res.cookie('token', token, {httpOnly: true, secure: true, SameSite: 'strict'});
+    
+    res.redirect('/');
 }

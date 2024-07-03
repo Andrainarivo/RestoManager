@@ -108,7 +108,7 @@ export function makeCommande(req, res) {
         return;
     }
 
-    ClientCommande.make(req.session.clientId, new ClientCommande(req.body), function (err, result){
+    ClientCommande.make(req.session.clientID, new ClientCommande(req.body), function (err, result){
         if (err) res.send(err.message);
         res.status(201).json({error:false, message:'Commande créer avec succès'});
         return;
@@ -118,7 +118,7 @@ export function makeCommande(req, res) {
 // recuperer mes commandes
 export function getMyCommande(req, res){
 
-    ServerCommande.findByClientId(req.session.clientId, function(err, commandes){
+    ClientCommande.findMyCommande(req.session.clientID, function(err, commandes){
         if (err) res.send(err.message);
         res.json(commandes);
         return;

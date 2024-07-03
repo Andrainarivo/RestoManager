@@ -101,6 +101,7 @@ export function deleteMenu(req, res){
 }
 
 // Récuperer les menus du meme categorie
+// catégorie: entrée, principal, dessert
 export function getMenuByCat(req, res){
     const categorie = req.params.categorie;
 
