@@ -1,23 +1,28 @@
-import mysql from 'mysql';
+// configs/db.config.js
+import mysql from 'mysql2/promise'; // <-- Ajout de /promise
 import { config } from 'dotenv';
 
 config();
 
-// configuration de la connection à la base de donnée
-const dbConn = mysql.createConnection({
-    host: process.env.HOST,
-    user: process.env.USERNAME,
-    password: process.env.PASSWORD,
-    port: process.env.DB_PORT,
-    database: process.env.DATABASE
+// Création d'un pool de connexions (plus performant)
+const dbPool = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 3306,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-// connection à la base de données
-dbConn.connect( (error) => {
-    if (error) throw error.message;
-    console.log(`Database ${dbConn.state}`);
-});
+// Test rapide de la connexion
+try {
+    const connection = await dbPool.getConnection();
+    console.log(`✅ Pool de base de données connecté ! (Base: ${process.env.DB_NAME})`);
+    connection.release(); // On libère la connexion pour qu'elle retourne dans le pool
+} catch (error) {
+    console.error("❌ Erreur de connexion à la base de données :", error.message);
+}
 
-
-//exportation du module
-export default dbConn;
+export default dbPool;

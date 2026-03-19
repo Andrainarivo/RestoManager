@@ -8,168 +8,164 @@ import { config } from 'dotenv';
 config();
 
 // Créer un nouveau client
-export function createClient(req, response) {
+export async function createClient(req, res) {
+    try {
+        if (Object.keys(req.body).length < 3) {
+            return res.status(400).json({ status: "error", message: "Renseignez tous les champs requis" });
+        }
 
-    if (Object.keys(req.body).length < 3) {
-        response.status(400).send({error:true, message:'Renseignez tous les champs requis'});
-        return;
-    }else{
-        let newClient = new Client(req.body);
+        const emailExists = await Client.is_exists(req.body.email);
+        if (emailExists) {
+            return res.status(400).json({ status: "error", message: "Cet email est déjà enregistré" });
+        }
 
-        // vérifie si le client existe déjà dans la base de donnée
-        newClient.is_exists((err, res) => {
-            if (err) {
-                response.send(err.message);
-                return;
-            }
-            if (res === true) {
-                response.status(400).send({message: 'Cette email est déjà enregistrer dans la base de donnée'});
-                return;
-            }
-            else{
-                // Fonction pour hacher le mot de passe
-                bcrypt.genSalt(10, async (err, salt) =>{
-                    if (err) console.log(err.message);
-                    await bcrypt.hash(newClient.password, salt, (err, hash) => {
-                        if (err) console.log(err.message);
-                        newClient.password = hash;
+        const newClient = new Client(req.body);
+        const salt = await bcrypt.genSalt(10);
+        newClient.password = await bcrypt.hash(newClient.password, salt);
 
-                        // enregistrement du client
-                        Client.save(newClient, (err, res)=>{
-                            if (err) {
-                                response.send(err.message);
-                                return;
-                            }
+        await Client.save(newClient);
 
-                            response.status(201).json({error:false, message: 'Client créé avec succès' });
-                            return;
-                        });
-                    });
-                });
-            }
-        });
-
-        
-        
-    };
+        return res.status(201).json({ status: "success", message: "Client créé avec succès" });
+    } catch (error) {
+        return res.status(500).json({ status: "error", message: "Erreur serveur", detail: error.message });
+    }
 }
 
 // Récupérer tous les clients
-export function getAllClients(req, res) {
-    Client.fetchAll(function (err, clients){
-        if (err) res.send(err);
-        res.status(200).json(clients);
-    });
+export async function getAllClients(req, res) {
+    try {
+        const clients = await Client.fetchAll();
+        return res.status(200).json({ status: "success", data: clients });
+    } catch (error) {
+        return res.status(500).json({ status: "error", message: "Impossible de récupérer les clients" });
+    }
 }
 
 // Récupérer un client par son ID
-export function getClientById(req, res) {
-    const clientId = req.params.id;
-    Client.findById(clientId, (err, client) => {
-        if (err) res.send(err.message);
-        res.status(200).json(client);
-    });
+export async function getClientById(req, res) {
+    try {
+        const clientId = req.params.id;
+        const client = await Client.findById(clientId);
+        return res.status(200).json({ status: "success", data: client });
+    } catch (error) {
+        return res.status(500).json({ status: "error", message: "Impossible de récupérer le client" });
+    }
 }
 
 // Mettre à jour les informations d'un client
-export function updateClient(req, res) {
-    const clientId = req.session.clientID;
-    if (Object.keys(req.body).length < 3) {
-        return res.status(400).send({error:true, message:'Renseignez tous les champs requis'});
-    }else{
+export async function updateClient(req, res) {
+
+    try {
+        if (Object.keys(req.body).length < 3) {
+            return res.status(400).json({ status: "error", message: "Renseignez tous les champs requis" });
+        }
+
+        const clientId = req.session.clientID;
         const updatedClient = new Client(req.body);
-
-        Client.update(clientId, updatedClient, (err) => {
-            if (err)  return res.send(err.message);
-            res.status(200).json({ message: 'Client mis à jour avec succès' });
-            return;
-        });
+        await Client.update(clientId, updatedClient);
+        return res.status(200).json({ status: "success", message: "Client mis à jour avec succès" });
+    } catch (error) {
+        return res.status(500).json({ status: "error", message: "Impossible de mettre à jour le client" });
     }
-    
 }
-
-// Mettre à jour partiallement les informations d'un client
-/*export function patchClient(req,res) {
-    const clientId = req.params.id;
-    const updatedClient = new Client(req.body);
-
-    Client.patch(clientId, updatedClient, (err) => {
-        if (err) res.send(err.message);
-        res.status(200).json({ message: 'Client mis à jour avec succès' });
-    });
-}*/
 
 // Supprimer un client
-export function deleteClient(req, res) {
-    const clientId = req.params.id;
-
-    Client.delete(clientId, (err) => {
-        if (err) {
-            res.send(err.message);
-            return;
+export async function deleteClient(req, res) {
+    try {
+        const clientId = req.params.id;
+        const client = await Client.delete(clientId);
+        if (!client) {
+            return res.status(404).json({ status: "error", message: "Client non trouvé" });
         }
-        res.status(200).json({ message: 'Client supprimé avec succès' });
-        return;
-    });
+        return res.status(200).json({ status: "success", message: "Client supprimé avec succès" });
+    } catch (error) {
+        return res.status(500).json({ status: "error", message: "Impossible de supprimer le client" });
+    }
 }
 
-// Authentifié un client
-export function authentificateClient(req, res){
-    
-    function generateAccessToken(payload) {
-        const options = {expiresIn: '1 days'}
-        return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, options);
-    };
+// Fonction utilitaire pour générer le token JWT avec une durée d'expiration de 1 jour
+const generateAccessToken = (payload) => {
+    return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' });
+};
 
-    const input = {
-        email: req.body.email,
-        password: req.body.password
-    };
+export async function authenticateClient(req, res) {
+    try {
+        const { email, password } = req.body;
 
-    Client.loadUser(input.email, async (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        if (result.length == 0) {
-            return res.send("Email ou password invalide");
-        }
-
-        const client = {
-            id: result[0].client_id,
-            email: input.email,
-            password: result[0].password,
-            role: 'client'
-        };
-
-        // verification du password
-        if(await bcrypt.compare(input.password, client.password)){
-            // Authentification réussie
-            // Generate a JWT with a secret key (for authorization)
-            const payload = {id: client.id, role: client.role};
-            const token = generateAccessToken(payload);
-            res.cookie('token', token, {httpOnly: true, secure: true, SameSite: 'strict'});
-            res.json({
-                status: "Logged in",
-                message: 'Authentification réussie'
+        // 1. Validation basique des entrées
+        if (!email || !password) {
+            return res.status(400).json({ 
+                status: "error", 
+                message: "Email et mot de passe requis" 
             });
-            return;
-        }else {
-                res.status(401).send('Identifiants incorrects');
-                return;
-            }
-        
-    });
+        }
+
+        // 2. Recherche de l'utilisateur (Utilise le nouveau modèle avec Promise)
+        const user = await Client.loadUser(email);
+
+        // 3. Vérification de l'existence
+        if (!user) {
+            // Note de sécurité : on ne précise pas si c'est l'email ou le mdp qui est faux
+            return res.status(401).json({ 
+                status: "error", 
+                message: "Identifiants incorrects" 
+            });
+        }
+
+        // 4. Vérification du mot de passe avec bcrypt (Version await)
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return res.status(401).json({ 
+                status: "error", 
+                message: "Identifiants incorrects" 
+            });
+        }
+
+        // 5. Authentification réussie : Préparation du payload et du token
+        const payload = { 
+            id: user.client_id, 
+            role: 'client' 
+        };
+        const token = generateAccessToken(payload);
+
+        // 6. Envoi du cookie et de la réponse
+        // Note : secure: process.env.NODE_ENV === 'production' est une bonne pratique
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: false, // Mettre à true en HTTPS/Production
+            sameSite: 'strict',
+            maxAge: 24 * 60 * 60 * 1000 // 1 jour en millisecondes
+        });
+
+        return res.status(200).json({
+            status: "success",
+            message: "Authentification réussie",
+            user: { id: user.client_id, email: email } // On évite de renvoyer le password haché
+        });
+
+    } catch (error) {
+        console.error("Erreur Auth:", error);
+        return res.status(500).json({ 
+            status: "error", 
+            message: "Erreur lors de l'authentification",
+            detail: error.message 
+        });
+    }
 }
 
 // deconnection
 export function logout(req, res) {
     // destroy the user's session to log them out
-    req.session.destroy();
+    if (req.session) {
+        req.session.destroy();
+    }
 
     // destroy the user's token
-    const token = null
-    res.cookie('token', token, {httpOnly: true, secure: true, SameSite: 'strict'});
+    res.clearCookie('token');
 
-    res.redirect('/');
+    return res.status(200).json({
+        status: "success",
+        message: "Successfully logged out"
+    });
 }

@@ -1,108 +1,59 @@
-import dbConn from "../configs/db.config.js";
-
-// ServerReservation (pour les employes) et ClientReservation (pour les clients)
+import dbPool from "../configs/db.config.js";
 
 export class ServerReservation {
-    constructor(reservation){
+    constructor(reservation) {
         this.client_id = reservation.client_id;
         this.date = reservation.date;
         this.heure = reservation.heure;
         this.nombre_personne = reservation.nombre_personne;
-        this.status = 0 // zero pour en attente et 1 pour confirmé (en cas d'annulation utiliser la methode delete)
+        this.status = reservation.status || 0; 
     }
 
-    
-
-    // Méthode pour enregistrer une nouvelle reservation
-    static create(email, newReservation, result){
-        let sql = "insert into reservations set ?";
-        let client_sql = "select client_id from clients where email = ?";
-        let clientId = 0;
-
-        dbConn.query(client_sql, [email], (err, res) => {
-            try {
-                if (err){
-                    console.log(err.message);
-                } else {
-                    clientId += res[0].client_id;
-                    newReservation.client_id = clientId;
-                    
-                    dbConn.query(sql, newReservation, (err, res) => {
-                        if (err) result(err, null);
-                        result(null, res);
-                    });
-                };
-            } catch (TypeError) {
-                err = 'Veuillez renseigner tous les champs correctement et entrer une adresse mail valide';
-                try {
-                    result(err, null);
-                } catch (error) {
-                    console.log(error.message);
-                };
-            };
-        });
-
+    static async create(email, reservationData) {
+        // 1. Trouver le client_id
+        const [clients] = await dbPool.query("SELECT client_id FROM clients WHERE email = ?", [email]);
         
+        if (clients.length === 0) {
+            throw new Error("Client non trouvé avec cet email");
+        }
+
+        const clientId = clients[0].client_id;
+        
+        // 2. Insérer la réservation
+        const newRes = { ...reservationData, client_id: clientId };
+        const [result] = await dbPool.query("INSERT INTO reservations SET ?", [newRes]);
+        return result;
     }
 
-    // Méthode pour récuperer  une reservation par son ID
-    static findById(reservation_id, result){
-        let sql = "select * from reservations where reservation_id = ?";
-
-        dbConn.query(sql, [reservation_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async findById(reservation_id) {
+        const [rows] = await dbPool.query("SELECT * FROM reservations WHERE reservation_id = ?", [reservation_id]);
+        return rows.length ? rows[0] : null;
     }
 
-    // Méthode pour recuperer toutes les reservations
-    static findAll(result){
-        let sql = "select * from reservations";
-
-        dbConn.query(sql, (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async findAll() {
+        const [rows] = await dbPool.query("SELECT * FROM reservations");
+        return rows;
     }
 
-    // Méthode pour mettre à jour les informations d'une reseravation
-    static update(reservation_id, reservation, result){
-        let sql = "update reservations set ?";
-
-        dbConn.query(sql, [reservation, reservation_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async update(reservation_id, data) {
+        // Cette méthode gère maintenant PUT et PATCH (grâce au SET ?)
+        const [result] = await dbPool.query("UPDATE reservations SET ? WHERE reservation_id = ?", [data, reservation_id]);
+        return result;
     }
 
-    // Méthode pour supprimer une reservation
-    static delete(reservation_id, result){
-        let sql = "delete from reservations where reservation_id = ?";
-
-        dbConn.query(sql, [reservation_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async delete(reservation_id) {
+        const [result] = await dbPool.query("DELETE FROM reservations WHERE reservation_id = ?", [reservation_id]);
+        return result;
     }
 
-    // Méthode pour recuperer toutes les reservations d'un client par son clientId
-    static findClientReservation(client_id, result){
-        let sql = "select * from reservations where client_id = ?";
-
-        dbConn.query(sql, [client_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async findClientReservations(client_id) {
+        const [rows] = await dbPool.query("SELECT * FROM reservations WHERE client_id = ?", [client_id]);
+        return rows;
     }
 
-    // Méthode pour changer la status à 1 si le client a confirrmé
-    static changeStatus(reseravation_id, result){
-        let sql = "update reservations set status = 1 where reservation_id = ?";
-
-        dbConn.query(sql, [reseravation_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async changeStatus(reservation_id, status = 1) {
+        const [result] = await dbPool.query("UPDATE reservations SET status = ? WHERE reservation_id = ?", [status, reservation_id]);
+        return result;
     }
 }
 
@@ -112,46 +63,41 @@ export class ClientReservation {
         this.date = reservation.date;
         this.heure = reservation.heure;
         this.nombre_personne = reservation.nombre_personne;
-        this.status = 1;
-    };
-
-    // Méthode pour faire une nouvelle reservation
-    static make(newReservation, result){
-        let sql = "insert into reservations set ?";
-
-        dbConn.query(sql, newReservation, (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+        this.status = reservation.status || 1; // Par défaut, une réservation client est confirmée (status = 1)
     }
 
-    // Méthode pour mettre à jour les informations d'une reseravation
-    static update(client_id, reservation_id, reservation, result){
-        let sql = "update reservations set ?";
-
-        dbConn.query(sql, [client_id, reservation, reservation_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    // La logique Client est souvent un sous-ensemble de la logique Server avec une contrainte de client_id
+    static async make(newReservation) {
+        const [result] = await dbPool.query("INSERT INTO reservations SET ?", [newReservation]);
+        return result;
     }
 
-    // Méthode pour supprimer une reservation
-    static delete(client_id, reservation_id, result){
-        let sql = "delete from reservations where client_id = ? and reservation_id = ?";
-
-        dbConn.query(sql, [client_id, reservation_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async update(client_id, reservation_id, data) {
+        const [result] = await dbPool.query(
+            "UPDATE reservations SET ? WHERE client_id = ? AND reservation_id = ?", 
+            [data, client_id, reservation_id]
+        );
+        return result;
     }
 
-    // Méthode pour recuperer toutes les reservations d'un client par son clientId
-    static findClientReservation(client_id, result){
-        let sql = "select * from reservations where client_id = ?";
+    static async delete(client_id, reservation_id) {
+        const [result] = await dbPool.query(
+            "DELETE FROM reservations WHERE client_id = ? AND reservation_id = ?", 
+            [client_id, reservation_id]
+        );
+        return result;
+    }
 
-        dbConn.query(sql, [client_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async findByClientId(client_id) {
+        const [rows] = await dbPool.query("SELECT * FROM reservations WHERE client_id = ?", [client_id]);
+        return rows;
+    }
+
+    static async changeStatus(client_id, reservation_id, status = 1) {
+        const [result] = await dbPool.query(
+            "UPDATE reservations SET status = ? WHERE client_id = ? AND reservation_id = ?", 
+            [status, client_id, reservation_id]
+        );
+        return result;
     }
 }

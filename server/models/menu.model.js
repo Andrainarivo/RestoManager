@@ -1,81 +1,43 @@
-import dbConn from '../configs/db.config.js';
+import dbPool from '../configs/db.config.js';
 
-class Menu{
-    constructor(menu){
-        this.nom = menu.nom;
-        this.prix = menu.prix;
-        this.categorie = menu.categorie;
-        this.description = menu.description;
+class Menu {
+    constructor(menu) {
+        // On ne définit que si les valeurs existent pour éviter d'écraser par du "undefined"
+        if (menu.nom) this.nom = menu.nom;
+        if (menu.prix) this.prix = menu.prix;
+        if (menu.categorie) this.categorie = menu.categorie; // Ex: "entrée", "plat", "dessert"
+        if (menu.description) this.description = menu.description;
     };
 
-    // Méthode pour enregistrer un nouveau menu
-    static create(newMenu, result){
-        let sql = "insert into menus set ?";
-
-        dbConn.query(sql, newMenu, (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async create(newMenu) {
+        const [result] = await dbPool.query("INSERT INTO menus SET ?", [newMenu]);
+        return result;
     }
 
-    // Récuperer un menu par son ID
-    static findbyId(menu_id, result){
-        let sql = "select * from menus where menu_id = ?";
-
-        dbConn.query(sql, [menu_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async findById(menu_id) {
+        const [rows] = await dbPool.query("SELECT * FROM menus WHERE menu_id = ?", [menu_id]);
+        return rows.length ? rows[0] : null;
     }
 
-    // Méthode pour récuperer tous les menus
-    static findAll(result){
-        let sql = "select * from menus";
-
-        dbConn.query(sql, (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async findAll() {
+        const [rows] = await dbPool.query("SELECT * FROM menus");
+        return rows;
     }
 
-    // Méthode pour mettre à jour les info d'un menu
-    static update(menu_id, menu, result){
-        let sql = "update menus set ? where menu_id = ?";
-
-        dbConn.query(sql, [menu, menu_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    // Une seule méthode pour PUT et PATCH suffit grâce à l'objet dynamique
+    static async update(menu_id, menuData) {
+        const [result] = await dbPool.query("UPDATE menus SET ? WHERE menu_id = ?", [menuData, menu_id]);
+        return result;
     }
 
-     // Méthode pour mettre à jour partialement les info d'un menu
-     static patch(menu_id, menu, result){
-        let sql = "update menus set ? where menu_id = ?";
-
-        dbConn.query(sql, [menu, menu_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async delete(menu_id) {
+        const [result] = await dbPool.query("DELETE FROM menus WHERE menu_id = ?", [menu_id]);
+        return result;
     }
 
-    // Méthode pour supprimer un menu
-    static delete(menu_id, result){
-        let sql = "delete from menus where menu_id = ?";
-
-        dbConn.query(sql, [menu_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
-    }
-
-    // Méthode pour récuperer les menus du meme categorie
-    static findByCategorie(categorie, result){
-        let sql = "select * from menus where categorie = ?";
-
-        dbConn.query(sql, [categorie], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async findByCategorie(categorie) {
+        const [rows] = await dbPool.query("SELECT * FROM menus WHERE categorie = ?", [categorie]);
+        return rows;
     }
 }
 

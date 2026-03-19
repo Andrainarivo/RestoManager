@@ -1,23 +1,25 @@
-import {Router} from 'express';
+import { Router } from 'express';
 import { createCommande, deleteCommande, getAllCommandes, getCommandeByClientId, getCommandeById, getCommandeByMenuId, getMyCommande, makeCommande, updateCommande } from '../controllers/commande.controller.js';
-import { authorizeClient } from '../middlewares/client.auth.js';
-import { authorizeEmploye, authorizeServer } from '../middlewares/employe.auth.js';
 import { authentificateToken } from '../middlewares/auth.js';
-
+import { authorizeRoles } from '../middlewares/roles.auth.js'; // nouveau middleware unifié
+import { Validate, serverCommandeValidation, clientCommandeValidation } from '../middlewares/validate.js';
 
 const commandeRouter = Router();
 
-//--------------SERVER----------------
-commandeRouter.post('/commandes/new', authentificateToken, authorizeServer, createCommande);
-commandeRouter.get('/commandes/list', authentificateToken, authorizeEmploye, getAllCommandes);
-commandeRouter.get('/commandes/get/:id', authentificateToken, authorizeEmploye, getCommandeById);
-commandeRouter.get('/commandes/clients/:id', authentificateToken, authorizeEmploye, getCommandeByClientId);
-commandeRouter.get('/commandes/menus/:id', authentificateToken, authorizeEmploye, getCommandeByMenuId);
-commandeRouter.put('/commandes/maj/:id', authentificateToken, authorizeServer, updateCommande);
-commandeRouter.delete('/commandes/del/:id', authentificateToken, authorizeServer, deleteCommande);
+// On définit un groupe pour "tous les employés" pour raccourcir le code
+const allEmployes = ['Chef-Cuisinier', 'Cuisinier', 'Serveur', 'admin'];
 
-//-------------CLIENT----------------
-commandeRouter.post('/clients/commandes/post', authentificateToken, authorizeClient, makeCommande);
-commandeRouter.get('/clients/commandes/get', authentificateToken, authorizeClient, getMyCommande);
+// -------------- SERVER ----------------
+commandeRouter.post('/new', authentificateToken, authorizeRoles('Serveur', 'admin'), serverCommandeValidation, Validate, createCommande);
+commandeRouter.get('/list', authentificateToken, authorizeRoles(...allEmployes), getAllCommandes);
+commandeRouter.get('/get/:id', authentificateToken, authorizeRoles(...allEmployes), getCommandeById);
+commandeRouter.get('/clients/:id', authentificateToken, authorizeRoles(...allEmployes), getCommandeByClientId);
+commandeRouter.get('/menus/:id', authentificateToken, authorizeRoles(...allEmployes), getCommandeByMenuId);
+commandeRouter.put('/maj/:id', authentificateToken, authorizeRoles('Serveur', 'admin'), serverCommandeValidation, Validate, updateCommande);
+commandeRouter.delete('/del/:id', authentificateToken, authorizeRoles('Serveur', 'admin'), deleteCommande);
+
+// ------------- CLIENT ----------------
+commandeRouter.post('/clients/post', authentificateToken, authorizeRoles('client'), clientCommandeValidation, Validate, makeCommande);
+commandeRouter.get('/clients/get', authentificateToken, authorizeRoles('client'), getMyCommande);
 
 export default commandeRouter;

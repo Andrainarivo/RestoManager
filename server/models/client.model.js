@@ -1,7 +1,5 @@
-// models /client.model.js
-
-import dbConn from '../configs/db.config.js';
-
+// models/client.model.js
+import dbPool from '../configs/db.config.js';
 
 class Client {
     constructor(client) {
@@ -9,119 +7,50 @@ class Client {
         this.prenom = client.prenom;
         this.email = client.email;
         this.password = client.password;
-    };
-
-    // Méthode pour verifier si un client existe déjà dans la base de donné
-    is_exists(result){
-        let sql = "select email from clients where email = ?";
-
-        dbConn.query(sql, [this.email], (err, res) => {
-            if (err) {
-                result(err, null);
-            }
-            if (res.length == 0) {
-                result(null, false);
-            }
-            else {
-                if (this.email === res[0].email){
-                    result(null, true);
-                }
-                else result(null, null)  
-            };
-        });
     }
 
-    // Méthode pour enregistrer un nouveau client
-    static save(newClient, result) {
-        var sql = "insert into clients set ?";
-
-        dbConn.query(sql, newClient, (error, res) => {
-            if (error) {
-                result(error, null);
-            } else {
-                result(null, res);
-            };
-        });
+    // Plus de paramètre "result" (callback) ! On retourne la valeur directement.
+    static async is_exists(email) {
+        const sql = "SELECT email FROM clients WHERE email = ?";
+        const [rows] = await dbPool.query(sql, [email]);
+        return rows.length > 0; // Retourne true si l'email existe, sinon false
     }
 
-    // Méthode pour récupérer tous les clients
-    static fetchAll(result) {
-        let sql = "select * from clients";
-
-        dbConn.query(sql, (err, res) => {
-            if (err){
-                result(err, null);
-            }
-            else{
-                result(null, res);
-            }
-        });
+    static async save(newClient) {
+        const sql = "INSERT INTO clients SET ?";
+        const [result] = await dbPool.query(sql, [newClient]);
+        return result;
     }
 
-    // Méthode pour récupérer un client par son ID
-    static findById(client_id, result) {
-        let sql = "select * from clients where client_id = ?";
-
-        dbConn.query(sql, [client_id], (err, res) => {
-            if (err){
-                result(err, null);
-            }else{
-                result(null, res);
-            };
-        });
+    static async fetchAll() {
+        const sql = "SELECT * FROM clients";
+        const [rows] = await dbPool.query(sql);
+        return rows;
     }
 
-    // Méthode pour mettre à jour les informations d'un client
-    static update(client_id, client, result) {
-        let sql = "update clients set ? where client_id = ?";
-
-        dbConn.query(sql, [client, client_id], (err, res) => {
-            if (err){
-                result(err,null);
-            }else{
-                result(null, res);
-            };
-        });
+    static async findById(client_id) {
+        const sql = "SELECT * FROM clients WHERE client_id = ?";
+        const [rows] = await dbPool.query(sql, [client_id]);
+        return rows.length ? rows[0] : null; // Retourne l'objet client ou null
     }
 
-    // Méthode pour mettre à jour partiallement les informations d'un client
-    static patch(client_id, client, result) {
-        let sql = "update clients set ? where client_id = ?";
-
-        dbConn.query(sql, [client, client_id], (err, res) => {
-            if (err){
-                result(err,null);
-            }else{
-                result(null, res);
-            };
-        });
+    static async update(client_id, clientData) {
+        const sql = "UPDATE clients SET ? WHERE client_id = ?";
+        const [result] = await dbPool.query(sql, [clientData, client_id]);
+        return result;
     }
 
-    // Méthode pour supprimer un client
-    static delete(client_id, result) {
-        let sql = "delete from clients where client_id = ?";
-
-        dbConn.query(sql,[client_id], (err, res) => {
-            if (err){
-                result(err,null);
-            }else result(null, res);
-        });
+    static async delete(client_id) {
+        const sql = "DELETE FROM clients WHERE client_id = ?";
+        const [result] = await dbPool.query(sql, [client_id]);
+        return result;
     }
 
-    // Méthode pour récuperer l'id et le password d'un client pour l'authentification et la session
-    static loadUser(email, result) {
-        let sql = "select client_id, password from clients where email = ?";
-        
-        dbConn.query(sql, [email], (err, res) => {
-            if (err) {
-                result(err, null);
-            }
-            else{
-                result(null, res);
-            }
-        });
+    static async loadUser(email) {
+        const sql = "SELECT client_id, password FROM clients WHERE email = ?";
+        const [rows] = await dbPool.query(sql, [email]);
+        return rows.length ? rows[0] : null;
     }
-
 }
 
 export default Client;

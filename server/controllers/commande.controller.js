@@ -1,33 +1,26 @@
 import {ServerCommande, ClientCommande} from "../models/commande.model.js";
 
-
-//-----------------SERVER-------------------
-// Enregistrer une nouvelle commande
-// Champs requis : client_id, menu_id, genre
-export function createCommande(req, res){
-    if (Object.keys(req.body).length < 3) {
-        res.status(400).send({error:true, message:'Renseigner tous les champs requis'});
-        return;
-    }
-
-    ServerCommande.create(new ServerCommande(req.body), function (err, result){
-        if (err) {
-            res.send(err.message);
-            return;
+// --- SERVER SIDE ---
+export async function createCommande(req, res) {
+    try {
+        const { client_id, menu_id, genre } = req.body;
+        if (!client_id || !menu_id || !genre) {
+            return res.status(400).json({ status: "error", message: "Champs requis manquants" });
         }
-        res.status(201).json({error:false, message:'Commande créer avec succès'});
-        return;
-    });
-
+        await ServerCommande.create(new ServerCommande(req.body));
+        res.status(201).json({ status: "success", message: "Commande créée avec succès" });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
-// Récuperer toutes les commandes
-export function getAllCommandes(req, res){
-    ServerCommande.findAll(function (err, commandes){
-        if (err) return res.send(err.message);
-        res.json(commandes);
-        return;
-    });
+export async function getAllCommandes(req, res) {
+    try {
+        const data = await ServerCommande.findAll();
+        res.status(200).json({ status: "success", data });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
 // Récuperer une commande
@@ -99,28 +92,31 @@ export function getCommandeByMenuId(req, res){
 }
 
 
-//--------------CLIENT---------------------
-// faire une commande
-// champs requis: menu_id, genre
-export function makeCommande(req, res) {
-    if (Object.keys(req.body).length <= 1) {
-        res.status(400).send({error:true, message:'Renseigner tous les champs requis'});
-        return;
-    }
+// --- CLIENT SIDE ---
+export async function makeCommande(req, res) {
+    try {
+        const { menu_id, genre } = req.body;
+        const client_id = req.session.clientID;
 
-    ClientCommande.make(req.session.clientID, new ClientCommande(req.body), function (err, result){
-        if (err) res.send(err.message);
-        res.status(201).json({error:false, message:'Commande créer avec succès'});
-        return;
-    });
+        if (!menu_id || !genre) {
+            return res.status(400).json({ status: "error", message: "Menu et genre requis" });
+        }
+
+        const newCommande = { client_id, menu_id, genre, date: new Date() };
+        await ClientCommande.make(newCommande);
+        
+        res.status(201).json({ status: "success", message: "Votre commande est enregistrée" });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
 // recuperer mes commandes
-export function getMyCommande(req, res){
-
-    ClientCommande.findMyCommande(req.session.clientID, function(err, commandes){
-        if (err) res.send(err.message);
-        res.json(commandes);
-        return;
-    });
+export async function getMyCommande(req, res){
+    try {
+        const commandes = await ClientCommande.findMyCommande(req.session.clientID);
+        res.status(200).json({ status: "success", data: commandes });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }

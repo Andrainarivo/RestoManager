@@ -1,103 +1,56 @@
-import dbConn from "../configs/db.config.js";
+import dbPool from "../configs/db.config.js";
 
 class Stock {
-    constructor(stock){
+    constructor(stock) {
         this.menu_id = stock.menu_id;
         this.quantite_dispo = stock.quantite_dispo;
-    };
-
-    // Méthode pour enregistrer un nouveau stock
-    static create(newStock, result){
-        let sql = "insert into stocks values ?";
-
-        dbConn.query(sql, newStock, (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
     }
 
-    // Méthode pour récuperer tous les stocks
-    static findAll(result){
-        let sql = "select * from stocks";
-        
-        dbConn.query(sql, (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async create(newStock) {
+        const [result] = await dbPool.query("INSERT INTO stocks SET ?", [newStock]);
+        return result;
     }
 
-    // Méthode pour récuperer un stock par son ID
-    static findById(stock_id, result){
-        let sql = "select * from stocks where stock_id = ?"
-
-        dbConn.query(sql, [stock_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async findAll() {
+        const [rows] = await dbPool.query("SELECT * FROM stocks");
+        return rows;
     }
 
-    // Methode mettre à jour un stock
-    static update(stock_id, stock, result){
-        let sql = "update stocks set ?";
-
-        dbConn.query(sql, [stock_id, stock], (err, res) =>{
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async findById(id) {
+        const [rows] = await dbPool.query("SELECT * FROM stocks WHERE stock_id = ?", [id]);
+        return rows.length ? rows[0] : null;
     }
 
-    // Méthode pour supprimer un stock
-    static delete(stock_id, result){
-        let sql = "delete from stocks where stock_id = ?";
-
-        dbConn.query(sql, [stock_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
-    } 
-
-    // Methode pour récuperer les stocks sur un plat
-    static findByMenuId(menu_id, result){
-        let sql = "select * from stocks where menu_id = ?";
-
-        dbConn.query(sql, [menu_id], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    // Récupérer les stocks par menu_id
+    static async findByMenuId(menu_id) {
+        const [rows] = await dbPool.query("SELECT * FROM stocks WHERE menu_id = ?", [menu_id]);
+        return rows;
     }
 
-    // Méthode pour récuperer la quantié dispo d'un menu en stock
-    static getDispo(menu_id){
-        let sql = "select quantite_dispo from stocks where menu_id = ?";
-
-        dbConn.query(sql, [menu_id], (err, res) => {
-            if (err) console.log(err.message);
-            return res[0].quantite_dispo
-        });
+    static async getDispo(menu_id) {
+        const [rows] = await dbPool.query("SELECT quantite_dispo FROM stocks WHERE menu_id = ?", [menu_id]);
+        return rows.length ? rows[0].quantite_dispo : 0;
     }
 
-    // Méthode pour incrementer la quantité dispo d'un plat
-    static increment(menu_id, nb, result){
-        let dispo = Stock.getDispo(menu_id);
-        let sql = "update stocks set quantite_dispo = ? where menu_id = ?";
-        let value = dispo + nb;
-
-        dbConn.query(sql, [value], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    // Mettre à jour la quantité disponible d'un stock par menu_id
+    static async updateStockByMenu(menu_id, nouvelleQuantite) {
+        const [result] = await dbPool.query("UPDATE stocks SET quantite_dispo = ? WHERE menu_id = ?", [nouvelleQuantite, menu_id]);
+        return result;
     }
 
-    // Méthode pour decrementer la quantité dispo d'un plat
-    static decrement(menu_id, nb, result){
-        let dispo = Stock.getDispo(menu_id);
-        let sql = "update stocks set quantite_dispo = ? where menu_id = ?";
-        let value = dispo - nb;
+    static async increment(menu_id, nb) {
+        const actuel = await this.getDispo(menu_id);
+        return await this.updateStockByMenu(menu_id, actuel + parseInt(nb));
+    }
 
-        dbConn.query(sql, [value], (err, res) => {
-            if (err) result(err, null);
-            result(null, res);
-        });
+    static async decrement(menu_id, nb) {
+        const actuel = await this.getDispo(menu_id);
+        const nouveau = actuel - parseInt(nb);
+        return await this.updateStockByMenu(menu_id, nouveau < 0 ? 0 : nouveau);
+    }
+    
+    static async delete(id) {
+        return await dbPool.query("DELETE FROM stocks WHERE stock_id = ?", [id]);
     }
 }
 

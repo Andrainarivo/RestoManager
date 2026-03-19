@@ -1,33 +1,31 @@
-// routes/client.route.js
-
 import { Router } from 'express';
-import { createClient, getAllClients, getClientById, updateClient, deleteClient, authentificateClient, logout } from '../controllers/client.controller.js';
-import { authorizeClient } from '../middlewares/client.auth.js';
+import { createClient, getAllClients, getClientById, updateClient, deleteClient, authenticateClient, logout } from '../controllers/client.controller.js';
+import { authorizeRoles } from '../middlewares/roles.auth.js';
 import { Validate, loginClientValidation, signupClientValidation, updateClientValidation } from '../middlewares/validate.js';
-import { authorizeEmploye } from '../middlewares/employe.auth.js';
-import { authorizeAdmin } from '../middlewares/admin.auth.js';
 import { authentificateToken } from '../middlewares/auth.js';
 
 const clientRouter = Router();
 
-//----POST----
-clientRouter.post('/clients/register', signupClientValidation, Validate, createClient);
-clientRouter.post('/clients/login', loginClientValidation, Validate, authentificateClient);
-clientRouter.post('/clients/logout', authentificateToken, authorizeClient, logout);
+// On crée un groupe de rôles pour le staff
+const allStaff = ['admin', 'Chef-Cuisinier', 'Cuisinier', 'Serveur', 'Others'];
 
-//----GET-----
-clientRouter.get('/clients/list', authentificateToken, authorizeEmploye || authorizeAdmin, getAllClients);
-clientRouter.get('/clients/:id', authentificateToken, authorizeEmploye || authorizeAdmin, getClientById);
-clientRouter.get('/clients/profile', authentificateToken, authorizeClient, (req, res) => {
-    res.send('Bienvenue sur votre profile.');
+// ---- POST ----
+clientRouter.post('/register', signupClientValidation, Validate, createClient);
+clientRouter.post('/login', loginClientValidation, Validate, authenticateClient);
+clientRouter.post('/logout', authentificateToken, authorizeRoles('client'), logout);
+
+// ---- GET -----
+clientRouter.get('/list', authentificateToken, authorizeRoles(...allStaff), getAllClients);
+clientRouter.get('/profile', authentificateToken, authorizeRoles('client'), (req, res) => {
+    res.send('Bienvenue sur votre profil.');
 });
+// Les routes avec des paramètres dynamiques (/:id) doivent toujours être à la fin !
+clientRouter.get('/:id', authentificateToken, authorizeRoles(...allStaff), getClientById);
 
-//----PUT----
-clientRouter.put('/clients/update/', authentificateToken, authorizeClient, updateClientValidation, Validate, updateClient);
-//clientRouter.patch('/clients/:id', patchClient);
+// ---- PUT ----
+clientRouter.put('/update', authentificateToken, authorizeRoles('client'), updateClientValidation, Validate, updateClient);
 
-//---DELETE----
-clientRouter.delete('/clients/del/:id', authentificateToken, authorizeAdmin, deleteClient);
-
+// --- DELETE ----
+clientRouter.delete('/del/:id', authentificateToken, authorizeRoles('admin'), deleteClient);
 
 export default clientRouter;

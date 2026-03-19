@@ -1,24 +1,30 @@
 import { Router } from "express";
-import { createReservation, getReservationById, getAllReservations, updateReservation, deleteReservation, getClientReservation, confirm, makeReservation, getMyReservation, updateMyReservation, deleteMyReservation } from "../controllers/reservation.controller.js";
-import { authorizeClient } from "../middlewares/client.auth.js";
-import { authorizeChef, authorizeEmploye, authorizeServer } from "../middlewares/employe.auth.js";
+import { createReservation, getReservationById, getAllReservations, updateReservation, deleteReservation, getClientReservations, confirmReservation, makeReservation, deleteMyReservation, confirmMyReservation, updateMyReservation, getMyReservations } from "../controllers/reservation.controller.js";
 import { authentificateToken } from "../middlewares/auth.js";
+import { authorizeRoles } from '../middlewares/roles.auth.js';
+import { Validate, serverReservationValidation, clientReservationValidation } from '../middlewares/validate.js';
 
 const reservationRouter = Router();
+const allEmployes = ['Chef-Cuisinier', 'Cuisinier', 'Serveur', 'admin'];
 
-//----------SERVER-----------
-reservationRouter.post('/reservations/new', authentificateToken, authorizeServer || authorizeChef, createReservation);
-reservationRouter.get('/reservations/get/:id', authentificateToken, authorizeEmploye, getReservationById);
-reservationRouter.get('/reservations/list', authentificateToken, authorizeEmploye, getAllReservations);
-reservationRouter.put('/reservations/maj/:id', authentificateToken, authorizeServer || authorizeChef, updateReservation);
-reservationRouter.delete('/reservations/cancel/:id', authentificateToken, authorizeChef || authorizeServer, deleteReservation);
-reservationRouter.get('/reservations/clients/:id', authentificateToken, authorizeEmploye, getClientReservation);
-reservationRouter.put('/reservations/confirm/:id', authentificateToken, authorizeServer, confirm);
+// ---------- SERVER -----------
+reservationRouter.post('/server/new', authentificateToken, authorizeRoles('Serveur', 'Chef-Cuisinier', 'admin'), serverReservationValidation, Validate, createReservation);
+reservationRouter.get('/server/list', authentificateToken, authorizeRoles(...allEmployes), getAllReservations);
+reservationRouter.get('/server/get/:reservationId', authentificateToken, authorizeRoles(...allEmployes), getReservationById);
+reservationRouter.get('/server/list/:clientId', authentificateToken, authorizeRoles(...allEmployes), getClientReservations);
 
-//----------CLIENT--------------
-reservationRouter.post('/clients/reservations/new', authentificateToken, authorizeClient, makeReservation);
-reservationRouter.get('/clients/reservations/get', authentificateToken, authorizeClient, getMyReservation);
-reservationRouter.put('/clients/reservations/maj/:id', authentificateToken, authorizeClient, updateMyReservation);
-reservationRouter.delete('/clients/reservation/cancel/:id', authentificateToken, authorizeClient, deleteMyReservation);
+// Mises à jour serveur
+reservationRouter.put('/server/maj/:reservationId', authentificateToken, authorizeRoles('Serveur', 'Chef-Cuisinier', 'admin'), serverReservationValidation, Validate, updateReservation);
+reservationRouter.patch('/server/patch/:reservationId', authentificateToken, authorizeRoles('Serveur', 'Chef-Cuisinier', 'admin'), updateReservation);
+reservationRouter.put('/server/confirm/:reservationId', authentificateToken, authorizeRoles('Serveur', 'admin'), confirmReservation);
+
+reservationRouter.delete('/server/cancel/:reservationId', authentificateToken, authorizeRoles('Serveur', 'Chef-Cuisinier', 'admin'), deleteReservation);
+// ---------- CLIENT --------------
+reservationRouter.post('/clients/new', authentificateToken, authorizeRoles('client'), clientReservationValidation, Validate, makeReservation);
+reservationRouter.get('/clients/get', authentificateToken, authorizeRoles('client'), getMyReservations);
+reservationRouter.put('/clients/maj/:reservationId', authentificateToken, authorizeRoles('client'), clientReservationValidation, Validate, updateMyReservation);
+reservationRouter.delete('/clients/cancel/:reservationId', authentificateToken, authorizeRoles('client'), deleteMyReservation);
+reservationRouter.put('/clients/confirm/:reservationId', authentificateToken, authorizeRoles('client'), confirmMyReservation);
+
 
 export default reservationRouter;

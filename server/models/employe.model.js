@@ -1,6 +1,6 @@
 // models /employe.model.js
 
-import dbConn from '../configs/db.config.js';
+import dbPool from '../configs/db.config.js';
 
 function generateRandomPassword(minLength=8, maxLength=12) {
     const passwordLength = Math.floor(Math.random() * (maxLength - minLength + 1)) + minLength;
@@ -28,116 +28,60 @@ class Employe {
     }
 
     // ajouter un nouveau employe
-    static create(newEmploye, result){
-        let sql = "insert into employes set ?";
-        dbConn.query(sql, newEmploye, (err, res) => {
-            if (err) {
-                console.log(err.message);
-                result(err, null);
-            } else {
-                console.log(res.insertId);
-                result(null, res);
-            };
-        });
+    static async create(newEmploye){
+        const sql = "insert into employes set ?";
+        const [result] = await dbPool.query(sql, [newEmploye]);
+        return result;
     }
 
     // récuperer un employe par son id
-    static findById(employe_id, result){
-        let sql = "select * from employes where employe_id = ?";
-        dbConn.query(sql, employe_id, (err, res) => {
-            if (err) {
-                console.log(err.message);
-                result(err, null);
-            } else {
-                console.log(res);
-                result(null, res);
-            };
-        });
+    static async findById(employe_id){
+        const sql = "select * from employes where employe_id = ?";
+        const [rows] = await dbPool.query(sql, [employe_id]);
+        return rows.length ? rows[0] : null; // Retourne l'objet employe ou null
     }
 
     // récuperer tous les employés
-    static findAll(result){
-        let sql = "select * from employes";
-
-        dbConn.query(sql, function (err, res) {
-            if (err) {
-                console.log(err.message);
-                result(err, null);
-            } else {
-                console.log("EMPLOYES : ", res);
-                result(null, res);
-            };
-        });
+    static async findAll(){
+        const sql = "select * from employes";
+        const [rows] = await dbPool.query(sql);
+        return rows;
     }
 
     // mise à jour d'un employé
-    static update(employe_id, employe, result){
-        let sql = "update employes set nom = ?, prenom = ?, poste = ?, salaire = ?, email = ? where employe_id = ?";
-
-        dbConn.query(sql, [employe.nom, employe.prenom, employe.poste, employe.salaire, employe.email, employe_id], function (err, res){
-            if (err) {
-                console.log(err.message);
-                result(err, null);
-            } else {
-                console.log(res);
-                result(null, res);
-            };
-        });
+    static async update(employe_id, employe){
+        const sql = "update employes set nom = ?, prenom = ?, poste = ?, salaire = ?, email = ? where employe_id = ?";
+        const [result] = await dbPool.query(sql, [employe.nom, employe.prenom, employe.poste, employe.salaire, employe.email, employe_id]);
+        return result;
     }
 
     // suppression d'un employe
-    static delete(employe_id, result) {
-        let sql = "delete from employes where employe_id = ?";
-
-        dbConn.query(sql, [employe_id], function (err, res) {
-            if (err) {
-                console.log(err.message);
-                result(err, null);
-            } else {
-                console.log(res);
-                result(null, res);
-            };
-        });
+    static async delete(employe_id){
+        const sql = "delete from employes where employe_id = ?";
+        const [result] = await dbPool.query(sql, [employe_id]);
+        return result;
     }
 
     // récuperer l'id, le poste, le pk et le pk_status d'un employe pour l'authentification et la session
-    static loadUser(email, result) {
-        let sql = "select employe_id, poste, personnel_key, pk_status from employes where email = ?";
-        
-        dbConn.query(sql, [email], (err, res) => {
-            if (err) {
-                result(err, null);
-            }
-            else{
-                console.log(res);
-                result(null, res);
-            }
-        });
+    static async loadUser(email) {
+        const sql = "select employe_id, poste, personnel_key, pk_status from employes where email = ?";
+        const [rows] = await dbPool.query(sql, [email]);
+        return rows.length ? rows[0] : null;
     }
 
     // session emlpoye
     // récuperer ma clé
-    static loadKeys(employe_id, result) {
-        let sql = "select personnel_key from employes where employe_id = ?";
-        
-        dbConn.query(sql, [employe_id], (err, res) => {
-            if (err) {
-                result(err, null);
-            }
-            else{
-                result(null, res);
-            }
-        });
+    static async loadKeys(employe_id) {
+        const sql = "select personnel_key from employes where employe_id = ?";
+        const [rows] = await dbPool.query(sql, [employe_id]);
+        return rows.length ? rows[0] : null;
     }
 
     // mettre à jour la clé
-    static updateKey(employe_id, newKey, result) {
-        let sql = "update employes set personnel_key = ?, pk_status = 1 where employe_id = ?";
-
-        dbConn.query(sql, [newKey, employe_id], (err, res) => {
-            if (err) result(err,  null);
-            result(null, res);
-        });
+    static async updateKey(employe_id, newKey) {
+        const sql = "update employes set personnel_key = ?, pk_status = 1 where employe_id = ?";
+        const [result] = await dbPool.query(sql, [newKey, employe_id]);
+        return result;
     }
 
 }

@@ -2,120 +2,89 @@ import Stock from "../models/stock.model.js";
 
 // Enregistrer un nouveau stock
 // Champs requis: menu_id et qté_dispo
-export function createStock(req, res) {
-    const stock = {
-        menu_id: req.body.menu_id,
-        quantite_dispo: req.body.quantite_dispo
-    };
-
-    const newStock = new Stock(stock);
-
-    Stock.create(newStock, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.json({message: 'Stock créé avec succès'});
-        return;
-    });
+export async function createStock(req, res) {
+    try {
+        const { menu_id, quantite_dispo } = req.body;
+        if (!menu_id) return res.status(400).json({ message: "menu_id manquant" });
+        
+        await Stock.create({ menu_id, quantite_dispo: quantite_dispo || 0 });
+        res.status(201).json({ status: "success", message: "Stock initialisé" });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
 // Récuperer tous les stocks
-export function getAllStocks(req, res) {
-
-    Stock.findAll((err, result) => {
-        if (err) {
-            res.send(err.message);
-            return
-        }
-        res.json(result);
-        return;
-    });
+export async function getAllStocks(req, res) {
+    try {
+        const data = await Stock.findAll();
+        res.status(200).json({ status: "success", data });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
 // Récuperer un stock par ID
-export function getStockById(req, res) {
-    const stockId = req.params.id;
-
-    Stock.findById(stockId, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.json(result);
-        return;
-    });
+export async function getStockById(req, res) {
+    try {
+        const stockId = req.params.id;
+        const data = await Stock.findById(stockId);
+        if (!data) return res.status(404).json({ status: "error", message: "Stock non trouvé" });
+        res.status(200).json({ status: "success", data });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
 // Recuperer les stocks par menu_id
-export function getMenuStock(req, res) {
-    const menuId = req.params.menu_id;
-
-    Stock.findById(menuId, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.json(result);
-        return;
-    });
+export async function getMenuStock(req, res) {
+    try {
+        const menuId = req.params.menu_id;
+        const data = await Stock.findByMenuId(menuId);
+        res.status(200).json({ status: "success", data });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
-// Decrementation de la qté dispo
-export function decrement(req, res) {
-    const menuId = req.params.menu_id;
-    const nb = req.params.nb;
-
-    Stock.decrement(menuId, nb, (err, res) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.json("Stock menu " + menuId + " decrementé de " + nb);
-        return;
-    });
+export async function decrement(req, res) {
+    try {
+        const { menu_id, nb } = req.params;
+        await Stock.decrement(menu_id, nb);
+        res.status(200).json({ status: "success", message: `Stock du menu ${menu_id} décrémenté de ${nb}` });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
-// Incrementation de la qté dispo
-export function increment(req, res) {
-    const menuId = req.params.menu_id;
-    const nb = req.params.nb;
-
-    Stock.increment(menuId, nb, (err, res) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.json("Stock menu " + menuId + " decrementé de " + nb);
-        return;
-    });
+export async function increment(req, res) {
+    try {
+        const { menu_id, nb } = req.params;
+        await Stock.increment(menu_id, nb);
+        res.status(200).json({ status: "success", message: `Stock du menu ${menu_id} incrémenté de ${nb}` });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
-// Mettre à jour un stock par son ID
-// Champs requis: menu_id et qté_dispo
-export function updateStock(req, res){
-    const stockId = req.params.id;
-
-    Stock.update(stockId, new Stock(req.body), (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.json({error: false, message: 'Stock ' +stockId +' mis à jour avec succès'});
-        return;
-    });
+export async function updateStock(req, res) {
+    try {
+        const menuId = req.params.menu_id;
+        const { quantite_dispo } = req.body;
+        await Stock.updateStockByMenu(menuId, quantite_dispo);
+        res.status(200).json({ status: "success", message: `Stock du menu ${menuId} mis à jour` });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
 // Supprimé un stock par son ID
-export function deleteStock(req, res) {
-    const stockId = req.params.id;
-
-    Stock.delete(stockId, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.json({error: false, message: 'Stock supprimé avec succès'});
-        return;
-    });
+export async function deleteStock(req, res) {
+    try {
+        const stockId = req.params.id;
+        await Stock.delete(stockId);
+        res.status(200).json({ status: "success", message: "Stock supprimé" });
+    } catch (err) {
+        res.status(500).json({ status: "error", message: err.message });
+    }
 }

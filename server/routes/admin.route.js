@@ -1,23 +1,26 @@
-import {Router} from 'express';
-import {Validate, loginValidation, signupValidation } from '../middlewares/validate.js';
-import { Admlogout, Login, addUserAdmin, getAdminById, getAllAdmins, updateAdmin } from '../controllers/admin.controller.js';
-import { authorizeAdmin } from '../middlewares/admin.auth.js';
+import { Router } from 'express';
+import { Validate, loginValidation, signupValidation, updateValidation } from '../middlewares/validate.js';
+import { Admlogout, Login, addUserAdmin, getAdminById, getAllAdmins, updateAdmin, deleteAdmin } from '../controllers/admin.controller.js';
+import { authorizeRoles } from '../middlewares/roles.auth.js';
 import { authentificateToken } from '../middlewares/auth.js';
 
 const adminRouter = Router();
-//----POST----
-adminRouter.post("/admin/register", authentificateToken, authorizeAdmin, signupValidation, Validate, addUserAdmin); // seul un admin peut ajouter un autre admin
-adminRouter.post("/admin/login", loginValidation, Validate, Login);
-adminRouter.post('/admin/logout', authentificateToken, authorizeAdmin, Admlogout);
 
-//----GET----
-adminRouter.get("/admin/list", authentificateToken, authorizeAdmin, getAllAdmins);
-adminRouter.get("/admin/get/:id", authentificateToken, authorizeAdmin, getAdminById);
+// ---- POST ----
+// Seul un admin existant peut en ajouter un autre
+adminRouter.post("/register", authentificateToken, authorizeRoles('admin'), signupValidation, Validate, addUserAdmin); 
+adminRouter.post("/login", loginValidation, Validate, Login);
+adminRouter.post('/logout', authentificateToken, authorizeRoles('admin'), Admlogout);
 
-//----PUT----
-//adminRouter.put('/admin/update/:id' authorizeProprio, updateAdmin);
+// ---- GET ----
+adminRouter.get("/list", authentificateToken, authorizeRoles('admin'), getAllAdmins);
+adminRouter.get("/get/:id", authentificateToken, authorizeRoles('admin'), getAdminById);
 
-//----DELETE----
-//adminRouter.delete('/admin/del/:id' authorizeProprio, deleteAdmin);
+// ---- PUT ----
+// Ajout du middleware de validation pour l'update
+adminRouter.put('/update/:id', authentificateToken, authorizeRoles('admin'), updateValidation, Validate, updateAdmin);
+
+// ---- DELETE ----
+adminRouter.delete('/del/:id', authentificateToken, authorizeRoles('admin'), deleteAdmin);
 
 export default adminRouter;

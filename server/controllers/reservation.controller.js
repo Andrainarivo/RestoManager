@@ -1,214 +1,170 @@
-// controllers /reservation
+import { ServerReservation, ClientReservation } from "../models/reservation.model.js";
 
-import {ServerReservation, ClientReservation} from "../models/reservation.model.js";
+// ------------- SERVER SIDE (ADMIN/EMPLOYE) --------------------
 
+export async function createReservation(req, res) {
+    try {
+        const { email, date, heure, nombre_personne } = req.body;
+        if (!email || !date || !heure || !nombre_personne) {
+            return res.status(400).json({ status: "error", message: "Champs requis manquants" });
+        }
 
-//-------------SERVER RESERVATION--------------------
-// enregistrer une nouvelle reservation
-// Champs requis : email, date, heure et nombre_personne
-export function createReservation(req, res){
-
-    if (Object.keys(req.body).length < 3) {
-        res.status(400).send({error:true, message:'Reinseigner tous les champs requis'});
-        return;
+        await ServerReservation.create(email, { date, heure, nombre_personne, status: 0 });
+        return res.status(201).json({ status: "success", message: "Réservation créée avec succès" });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
     }
-
-    const reservation = {
-        client_id: null,
-        date: req.body.date,
-        heure: req.body.heure,
-        nombre_personne: req.body.nombre_personne
-    };
-
-    const newReservation = new ServerReservation(reservation);
-    ServerReservation.create(req.body.email, newReservation, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        if (err == 'TypeError') {
-            res.send(err);
-            return;
-        }
-        res.status(201).json({error:false, message:'Réservation créer avec succès'});
-        return;
-    });
 }
 
-// Récuperer une reservation par son ID
-export function getReservationById(req, res){
-    const reservationId = req.params.id;
-
-    ServerReservation.findById(reservationId, (err, reservation) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.json(reservation);
-        return;
-    });
-
-}
-
-// Récuperer toutes réservations
-export function getAllReservations(req, res){
-    ServerReservation.findAll((err, reservations) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.json(reservations);
-        return;
-    });
-}
-
-// Méttre à jour une reservation par son id
-// champs requis: client_id, date, heure, nombre_personne
-export function updateReservation(req, res){
-    const reservationId = req.params.id;
-
-    if (Object.keys(req.body).length < 3) {
-        res.status(400).send({error:true, message:'Renseigner tous les champs'});
-        return;
+export async function getAllReservations(req, res) {
+    try {
+        const data = await ServerReservation.findAll();
+        return res.status(200).json({ status: "success", data });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
     }
-
-    const reservation = {
-        client_id: req.body.client_id,
-        date: req.body.date,
-        heure: req.body.heure,
-        nombre_personne: req.body.nombre_personne
-    };
-
-    ServerReservation.update(reservationId, reservation, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.status(200).json({error:false, message:'Reservation mise à jour avec succès'});
-        return;
-    });
 }
 
-// Supprimer une reservation par son ID
-export function deleteReservation(req, res){
-    const reservationId = req.params.id;
-
-    ServerReservation.delete(reservationId, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.json({message: 'Reservation supprimée avec succès'});
-        return;
-    })
+export async function getReservationById(req, res) {
+    try {
+        const data = await ServerReservation.findById(req.params.reservationId);
+        if (!data) return res.status(404).json({ status: "error", message: "Réservation non trouvée" });
+        return res.status(200).json({ status: "success", data });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
-// Récuperer toutes les reservations d'un client par son client_id
-export function getClientReservation(req, res){
-    const clientId = req.params.id;
-
-    ServerReservation.findClientReservation(clientId, (err, clientReservation) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.json(clientReservation);
-        return;
-    });
+export async function deleteReservation(req, res) {
+    try {
+        const result = await ServerReservation.delete(req.params.reservationId);
+        if (result.affectedRows === 0) return res.status(404).json({ status: "error", message: "Réservation non trouvée" });
+        return res.status(200).json({ status: "success", message: "Réservation supprimée" });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
-// Changer la status à 1 si la reservation  a été confirmé par le client
-export function confirm(req, res){
-    //
-    const reservationId = req.params.id;
+// PUT & PATCH fusionnés en une seule méthode dans le modèle, mais on peut garder des routes séparées pour la clarté côté client (ex: /reservations/:id pour PUT et /reservations/:id/status pour PATCH de status)
+export async function updateReservation(req, res) {
+    try {
+        const id = req.params.reservationId || req.params.id; // Supporte les deux routes PUT et PATCH
+        const allowedFields = ['date', 'heure', 'nombre_personne', 'status'];
+        const updates = {};
 
-    ServerReservation.changeStatus(reservationId, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
+        Object.keys(req.body).forEach(key => {
+            if (allowedFields.includes(key)) updates[key] = req.body[key];
+        });
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ status: "error", message: "Aucun champ valide à modifier" });
         }
-        res.json({message: 'Reservation ' + reservationId + ' confirmée'});
-        return;
-    });
+
+        const result = await ServerReservation.update(id, updates);
+        if (result.affectedRows === 0) return res.status(404).json({ status: "error", message: "Réservation non trouvée" });
+
+        return res.status(200).json({ status: "success", message: "Réservation mise à jour" });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
-//--------------CLIENT RESERVATION-------------------
-
-// faire une nouvelle reservation
-// Champs requis: date, heure, nb_personne
-export function makeReservation(req, res) {
-
-    if (Object.keys(req.body).length < 3){
-        res.status(400).send({error:true, message:'Reinseigner tous les champs requis'});
-        return;
-    }; 
-
-    const reservation = {
-        client_id: req.session.clientId,
-        date: req.body.date,
-        heure: req.body.heure,
-        nombre_personne: req.body.nombre_personne
-    };
-
-    const newReservation = new ServerReservation(reservation);
-    ClientReservation.make(newReservation, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        else{
-            res.status(200).json('Votre réservation a été effectué avec succès');
-            return;
-        };
-    });
+export async function confirmReservation(req, res) {
+    try {
+        const result = await ServerReservation.changeStatus(req.params.reservationId, 1);
+        if (result.affectedRows === 0) return res.status(404).json({ status: "error", message: "Réservation non trouvée" });
+        return res.status(200).json({ status: "success", message: "Réservation confirmée" });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
-// Méttre à jour une reservation
-export function updateMyReservation(req, res){
-    const reservationId = req.params.id;
-
-    if (Object.keys(req.body).length < 3) res.status(400).send({error:true, message:'Renseigner tous les champs'});
-
-    const reservation = {
-        date: req.body.date,
-        heure: req.body.heure,
-        nombre_personne: req.body.nombre_personne
-    };
-
-    ClientReservation.update(req.session.clientId, reservationId, reservation, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        } 
-        res.status(200).json({error:false, message:'Votre reservation a bien été mise à jour'});
-        return;
-    });
+export async function getClientReservations(req, res) {
+    try {
+        const clientId = req.params.clientId;
+        const data = await ServerReservation.findClientReservations(clientId);
+        return res.status(200).json({ status: "success", data });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
-// Supprimer une reservation par son ID
-export function deleteMyReservation(req, res){
-    const reservationId = req.params.id;
 
-    ClientReservation.delete(req.session.clientId, reservationId, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
+// ------------- CLIENT SIDE --------------------
+
+export async function makeReservation(req, res) {
+    try {
+        const { date, heure, nombre_personne } = req.body;
+        const clientId = req.session.clientID;
+
+        if (!date || !heure || !nombre_personne) {
+            return res.status(400).json({ status: "error", message: "Données incomplètes" });
         }
-        res.json({message: 'Votre reservation a été annulé'});
-        return;
-    });
+
+        const newRes = new ClientReservation({ client_id: clientId, date, heure, nombre_personne, status: 1 });
+        await ClientReservation.make(newRes);
+
+        return res.status(201).json({ status: "success", message: "Votre réservation est enregistrée" });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
-// Récuperer toutes les reservations d'un client
-export function getMyReservation(req, res){
-    const clientId = req.session.clientID;
-
-    ClientReservation.findClientReservation(clientId, (err, clientReservation) => {
-        if (err) {
-            res.send(err.message);
-            return;
+export async function deleteMyReservation(req, res) {
+    try {
+        const result = await ClientReservation.delete(req.session.clientID, req.params.reservationId);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ status: "error", message: "Réservation introuvable ou ne vous appartient pas" });
         }
-        res.json(clientReservation);
-        return;
-    });
+        return res.status(200).json({ status: "success", message: "Réservation annulée" });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
+}
+
+export async function updateMyReservation(req, res) {
+    try {
+        const clientId = req.session.clientID;
+        const allowedFields = ['date', 'heure', 'nombre_personne'];
+        const updates = {};
+
+        Object.keys(req.body).forEach(key => {
+            if (allowedFields.includes(key)) updates[key] = req.body[key];
+        });
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ status: "error", message: "Aucun champ valide à modifier" });
+        }
+
+        const result = await ClientReservation.update(clientId, req.params.reservationId, updates);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ status: "error", message: "Réservation introuvable ou ne vous appartient pas" });
+        }
+
+        return res.status(200).json({ status: "success", message: "Réservation mise à jour" });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
+}
+
+export async function confirmMyReservation(req, res) {
+    try {
+        const result = await ClientReservation.changeStatus(req.session.clientID, req.params.reservationId, 1);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ status: "error", message: "Réservation introuvable ou ne vous appartient pas" });
+        }
+        return res.status(200).json({ status: "success", message: "Réservation confirmée" });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
+}
+
+export async function getMyReservations(req, res) {
+    try {
+        const clientId = req.session.clientID;
+        const data = await ClientReservation.findByClientId(clientId);
+        return res.status(200).json({ status: "success", data });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
 }

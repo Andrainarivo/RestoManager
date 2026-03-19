@@ -1,25 +1,27 @@
-import { createMenu, deleteMenu, getAllMenus, getMenuByCat, getMenuById, updateMenu } from '../controllers/menu.controller.js';
-import {Router} from 'express';
-import { authorizeChef, authorizeEmploye } from '../middlewares/employe.auth.js';
-import { authorizeClient } from '../middlewares/client.auth.js';
+import { Router } from 'express';
+import { createMenu, deleteMenu, getAllMenus, getMenuByCat, getMenuById, updateMenu, patchMenu } from '../controllers/menu.controller.js';
 import { authentificateToken } from '../middlewares/auth.js';
+import { authorizeRoles } from '../middlewares/roles.auth.js';
+import { Validate, menuValidation, patchMenuValidation } from '../middlewares/validate.js';
 
 const menuRouter = Router();
 
-//----POST----
-menuRouter.post('/menus/add', authentificateToken, authorizeChef, createMenu);
+// Accès en lecture pour tout le monde (clients + staff)
+const everybody = ['Chef-Cuisinier', 'Cuisinier', 'Serveur', 'admin', 'client'];
 
-//----GET----
-menuRouter.get('/menus/list', authentificateToken, authorizeEmploye || authorizeClient, getAllMenus);
-menuRouter.get('/menus/get/:id', authentificateToken, authorizeEmploye || authorizeClient, getMenuById);
-menuRouter.get('/menus/get/:categorie', authentificateToken, authorizeEmploye || authorizeClient, getMenuByCat);
+// ---- POST ----
+menuRouter.post('/add', authentificateToken, authorizeRoles('Chef-Cuisinier', 'admin'), menuValidation, Validate, createMenu);
 
-//----PUT----
-menuRouter.put('/menus/maj/:id', authentificateToken, authorizeChef, updateMenu);
-//menuRouter.patch('/menus/:id', patchMenu);
+// ---- GET ----
+menuRouter.get('/list', authentificateToken, authorizeRoles(...everybody), getAllMenus);
+menuRouter.get('/get/:id', authentificateToken, authorizeRoles(...everybody), getMenuById);
+menuRouter.get('/cat/:categorie', authentificateToken, authorizeRoles(...everybody), getMenuByCat); // Changé /get/:categorie en /cat/:categorie pour éviter les conflits d'URL
 
-//----DELETE----
-menuRouter.delete('/menus/del/:id', authentificateToken, authorizeChef, deleteMenu);
+// ---- PUT / PATCH ----
+menuRouter.put('/maj/:id', authentificateToken, authorizeRoles('Chef-Cuisinier', 'admin'), menuValidation, Validate, updateMenu);
+menuRouter.patch('/patch/:id', authentificateToken, authorizeRoles('Chef-Cuisinier', 'admin'), patchMenuValidation, Validate, patchMenu);
 
+// ---- DELETE ----
+menuRouter.delete('/del/:id', authentificateToken, authorizeRoles('Chef-Cuisinier', 'admin'), deleteMenu);
 
 export default menuRouter;

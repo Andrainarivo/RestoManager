@@ -1,120 +1,115 @@
+// controllers/menu.controller.js
 import Menu from "../models/menu.model.js";
 
 // Enregistrer un nouveau menu
-// champs obligatoire: nom, prix, categorie
-// champ facultatif: description
-export function createMenu(req, res) {
-     
-    if (Object.keys(req.body).length < 2) {
-        res.status(400).send({error:true, message:'Reinseigner tous les champs requis'});
-        return;
-    }
-
-    const newMenu = new Menu(req.body);
-    Menu.create(newMenu, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
+export async function createMenu(req, res) {
+    try {
+        const { nom, prix, categorie } = req.body;
+        if (!nom || !prix || !categorie) {
+            return res.status(400).json({ status: "error", message: 'Le nom, le prix et la catégorie sont requis' });
         }
-        res.status(201).json({error: false, message: 'Menu ' + newMenu.nom + ' ajouté avec succès'});
-        return;
-    });
+
+        const newMenu = new Menu(req.body);
+        await Menu.create(newMenu);
+
+        return res.status(201).json({ status: "success", message: `Menu ${newMenu.nom} ajouté avec succès` });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
 // Récuperer un menu par son ID
-export function getMenuById(req, res){
-    const menuId = req.params.id;
-
-    Menu.findbyId(menuId, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
+export async function getMenuById(req, res) {
+    try {
+        const menu = await Menu.findById(req.params.id);
+        if (!menu) {
+            return res.status(404).json({ status: "error", message: 'Menu non trouvé' });
         }
-        if (result.length == 0) {
-            res.send('Menu not found !');
-            return;
-        }
-        res.json(result);
-        return;
-    });
+        return res.status(200).json({ status: "success", data: menu });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
 // Récuperer tous les menus
-export function getAllMenus(req, res){
-
-    Menu.findAll((err, menus) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        if (menus.length == 0) {
-            res.send('No data on table menus');
-            return;
-        }
-        res.json(menus);
-        return;
-     });
-}
-
-// Mettre à jour les informations d'un menu
-// champs obligatoire: nom, prix, categorie
-export function updateMenu(req, res){
-    const menuId = req.params.id;
-
-    if (Object.keys(req.body).length < 2) {
-        res.status(400).send({error:true, message:'Reinseigner tous les champs requis'});
-        return;
+export async function getAllMenus(req, res) {
+    try {
+        const menus = await Menu.findAll();
+        return res.status(200).json({ status: "success", data: menus });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
     }
-
-    Menu.update(menuId, new Menu(req.body), (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
-        }
-        res.status(200).json({error:false, message: 'Menu ' + menuId + ' mis à jour avec succès'});
-        return;
-    });
 }
 
-// Mettre à jour partialement les informations d'un menu
-/*export function patchMenu(req, res){
-    const menuId = req.params.id;
-
-    Menu.update(menuId, new Menu(req.body), (err, result) => {
-        if (err) res.send(err.message);
-        res.status(200).json({error:false, message: 'Menu ' + menuId + ' mis à jour avec succès'});
-    });
-}*/
-
-// Supprimer un menu par son ID
-export function deleteMenu(req, res){
-    const menuId = req.params.id;
-
-    Menu.delete(menuId, (err, result) => {
-        if (err) {
-            res.send(err.message);
-            return;
+// Mettre à jour (PUT) - On attend l'objet complet
+export async function updateMenu(req, res) {
+    try {
+        const { nom, prix, categorie } = req.body;
+        if (!nom || !prix || !categorie) {
+            return res.status(400).json({ status: "error", message: 'Données incomplètes pour une mise à jour totale' });
         }
-        res.json({message:'Menu ' + menuId + ' supprimé avec succès'});
-        return;
-    });
+
+        const result = await Menu.update(req.params.id, new Menu(req.body));
+        if (result.affectedRows === 0) return res.status(404).json({ status: "error", message: "Menu non trouvé" });
+
+        return res.status(200).json({ status: "success", message: 'Menu mis à jour avec succès' });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
 }
 
-// Récuperer les menus du meme categorie
-// catégorie: entrée, principal, dessert
-export function getMenuByCat(req, res){
-    const categorie = req.params.categorie;
+// Mise à jour partielle (PATCH)
+export async function patchMenu(req, res) {
+    try {
+        const menuId = req.params.id;
+        
+        // On ne garde que les champs autorisés présents dans le body
+        const allowedFields = ['nom', 'prix', 'categorie', 'description'];
+        const updates = {};
+        
+        Object.keys(req.body).forEach(key => {
+            if (allowedFields.includes(key)) {
+                updates[key] = req.body[key];
+            }
+        });
 
-    Menu.findByCategorie(categorie, (err, menus) => {
-        if (err) {
-            res.send(err.message);
-            return;
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ status: "error", message: "Aucun champ valide à mettre à jour" });
         }
-        if (menus.length == 0) {
-            res.send('Aucun menu de ce categorie');
-            return;
+
+        const result = await Menu.update(menuId, updates);
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ status: "error", message: "Menu non trouvé" });
         }
-        res.json(menus);
-        return;
-    });
+
+        return res.status(200).json({ status: "success", message: 'Menu modifié partiellement avec succès', fieldsUpdated: Object.keys(updates) });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
+}
+
+// Supprimer un menu
+export async function deleteMenu(req, res) {
+    try {
+        const result = await Menu.delete(req.params.id);
+        if (result.affectedRows === 0) return res.status(404).json({ status: "error", message: "Menu non trouvé" });
+
+        return res.status(200).json({ status: "success", message: 'Menu supprimé avec succès' });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
+}
+
+// Récuperer par catégorie
+export async function getMenuByCat(req, res) {
+    try {
+        const menus = await Menu.findByCategorie(req.params.categorie);
+        if (menus.length === 0) {
+            return res.status(404).json({ status: "success", message: 'Aucun menu dans cette catégorie', data: [] });
+        }
+        return res.status(200).json({ status: "success", data: menus });
+    } catch (err) {
+        return res.status(500).json({ status: "error", message: err.message });
+    }
 }
