@@ -1,12 +1,12 @@
 # 🍴 RestoManager API
 
-**RestoManager** est une API REST robuste et sécurisée conçue avec **ExpressJs** (**NodeJs**), permettant la gestion complète d'un établissement de restauration.
+Une API REST robuste conçue avec **Express.js**, permettant la gestion complète d'un établissement de restauration.
 
 Le projet met l'accent sur la **sécurité des données** et une **gestion granulaire des accès (RBAC)** pour les administrateurs, les différents types d'employés et les clients.
 
 ---
 
-## 🔥 Fonctionnalités Clés
+## Fonctionnalités Clés
 
 * **Gestion des Utilisateurs (RBAC) :** Système de rôles strict (Admin, Chef-Cuisinier, Cuisinier, Serveur, Client).
 * **Sécurité Renforcée :
@@ -16,23 +16,23 @@ Le projet met l'accent sur la **sécurité des données** et une **gestion granu
 * **Gestion du Menu :** CRUD complet pour les plats avec catégories et gestion des prix.
 * **Système de Réservations :** Validation des formats de date/heure et gestion des capacités.
 * **Commandes & Stocks :** Suivi en temps réel des commandes et mise à jour automatique des stocks.
-* **Architecture Propre :** Séparation claire des routes, contrôleurs, middlewares et configurations.
+* **Architecture MVC :** Séparation claire des modèles, vues et contrôleurs.
 
 ---
 
-## 🛠️ Stack Technique
+## Stack Technique
 
 * **Runtime :** Node.js v22 (LTS)
-* **Framework :** Express.js
+* **Framework backend:** Express
 * **Base de données :** MySQL 8.0+
 * **Authentification :** JWT, Bcrypt
 * **Validation :** Express-Validator
 
 ---
 
-## 🚀 Installation et Configuration
+## Installation et Configuration
 
-### 1. Prérequis (Node.js via NVM)
+### 1. Prérequis (Node.js)
 
 ```bash
 # Installation de NVM (si nécessaire)
@@ -46,7 +46,7 @@ node -v # Doit afficher v22.x.x
 
 ### 2. Base de données MySQL
 
-Connectez-vous à votre instance MySQL et exécutez le script suivant :
+Configuration recommandée :
 
 ```sql
 -- Création de la base de données
@@ -83,7 +83,7 @@ ACCESS_TOKEN_SECRET=VOTRE_CLE_JWT_TRES_LONGUE_ET_ALEATOIRE
 
 ---
 
-## 🛡️ Initialisation (Premier Administrateur)
+## Initialisation
 
 Le système étant protégé, vous devez créer le premier compte administrateur via le script utilitaire fourni :
 
@@ -95,7 +95,7 @@ node scripts/seedAdmin.js
 
 ---
 
-## 📂 Structure du Projet
+## Structure du Projet
 
 ```text
 server/
@@ -118,12 +118,7 @@ Une fois le serveur lancé (`npm start` ou `node server.js`), vous pouvez tester
 ```bash
 curl -X POST http://localhost:3000/api/admin/login \
      -H "Content-Type: application/json" \
-     -d '{"email":"admin@example.com", "password":"votre_password"}'
+     -d '{"email":"admin@example.com", "password":"admin_secure_password"}'
 ```
 
 ---
-
-## 📝 Auteur
-
-RALAIARISOA Andrainarivo
-[ralaiarisoaandrainarivo@gmail.com]
